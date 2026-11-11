@@ -128,32 +128,6 @@ tenderiq/
 
 ---
 
-## 🗓️ Plan sur 2 jours (une brique simple par techno)
-
-**Jour 1 — la donnée et l'IA**
-
-| Créneau | Brique | Résultat attendu |
-|---|---|---|
-| 1 | Docker Compose : Postgres, Qdrant, Ollama, MLflow | `docker compose up` démarre tout |
-| 2 | Scraper (1 seule source) → `data/raw` | ~50 appels d'offres en JSON |
-| 3 | Pipeline : nettoyage pandas + extraction LLM → Pydantic | JSON validé en base (schéma en étoile) |
-| 4 | Scoring XGBoost + SHAP, loggé dans MLflow | Un score + 3 raisons par appel d'offres |
-| 5 | RAG : PDF → chunks → Qdrant | Réponse avec citation de la page |
-
-**Jour 2 — l'agent, le produit et l'ops**
-
-| Créneau | Brique | Résultat attendu |
-|---|---|---|
-| 6 | Text-to-SQL read-only + agent LangGraph (routeur) | La bonne question va au bon outil |
-| 7 | API FastAPI + JWT, outil e-mail avec validation humaine | `/ask`, `/tenders`, `/approve` |
-| 8 | Front React minimal (liste + chat) | Démo utilisable |
-| 9 | Évals + tests d'injection + CI GitHub Actions (seuil bloquant) + Trivy | Pipeline rouge si la qualité baisse |
-| 10 | Prometheus/Grafana + Langfuse | Un dashboard de latence et de coût |
-
-**Bonus si le temps le permet :** serveur MCP, détection de dérive (Evidently), Superset, kind/Terraform, arabe.
-
----
-
 ## 🚀 Démarrage
 
 ### Prérequis
