@@ -1,0 +1,37 @@
+# Secrets
+.env
+
+# Guide personnel : jamais envoyé sur GitHub
+docs/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Données & artefacts (trop lourds pour git)
+data/raw/*
+data/processed/*
+!data/**/.gitkeep
+mlruns/*
+!mlruns/.gitkeep
+
+# Front
+frontend/node_modules/
+frontend/dist/
+
+# Terraform
+infra/terraform/.terraform/
+*.tfstate*
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# MLflow local & artefacts ML
+mlflow.db
+backend/ml/artifacts/
+evals/report.json

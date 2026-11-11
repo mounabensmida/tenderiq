@@ -1,0 +1,37 @@
+# Scraping & data
+scrapy
+playwright
+pandas
+reportlab
+# Base de données
+psycopg[binary]
+sqlalchemy
+# Validation & API
+pydantic
+pydantic-settings
+fastapi
+uvicorn[standard]
+python-jose[cryptography]
+bcrypt
+python-multipart
+# ML
+scikit-learn
+xgboost
+shap
+mlflow
+# RAG & agents
+qdrant-client
+langchain-core
+langchain-ollama
+langgraph
+mcp
+pypdf
+# Observabilité
+langfuse
+prometheus-fastapi-instrumentator
+opentelemetry-sdk
+# Tests & qualité
+pytest
+httpx
+ruff
+reportlab 
