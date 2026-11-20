@@ -3,6 +3,7 @@ from langchain_ollama import ChatOllama, OllamaEmbeddings
 
 from backend.app.core.config import settings
 
+
 def get_llm(json_mode: bool = False) -> ChatOllama:
     """Renvoie un LLM prêt à l'emploi.
     json_mode=True oblige le modèle à répondre avec du JSON valide :

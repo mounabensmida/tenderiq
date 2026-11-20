@@ -1,7 +1,7 @@
 """Configuration centrale : lit le fichier .env une seule fois."""
 from pathlib import Path
-from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ROOT = Path(__file__).resolve().parents[3]
 
