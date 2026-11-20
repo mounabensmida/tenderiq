@@ -30,6 +30,27 @@ services:
     ports:
       - "1025:1025" # SMTP : là où on « envoie » les e-mails
       - "8025:8025" # interface web pour lire les e-mails
+  api:
+    build:
+      context: .
+      dockerfile: infra/docker/backend.Dockerfile
+    image: tenderiq-api:latest
+    container_name: tenderiq-api
+    env_file: .env
+    environment:                                   # dans Docker, les services s'appellent par leur NOM
+      POSTGRES_HOST: postgres
+      QDRANT_URL: http://qdrant:6333
+      SMTP_HOST: mailpit
+      OLLAMA_BASE_URL: http://host.docker.internal:11434   # Ollama tourne sur Windows, hors Docker
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
 
 volumes:
   pgdata:
