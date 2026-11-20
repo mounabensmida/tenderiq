@@ -30,6 +30,7 @@ services:
     ports:
       - "1025:1025" # SMTP : là où on « envoie » les e-mails
       - "8025:8025" # interface web pour lire les e-mails
+
   api:
     build:
       context: .
@@ -51,6 +52,26 @@ services:
         condition: service_healthy
       qdrant:
         condition: service_started
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: tenderiq-prometheus
+    volumes:
+      - ./infra/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # pour joindre l'API qui tourne sur Windows
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    container_name: tenderiq-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ./infra/monitoring/grafana:/etc/grafana/provisioning/datasources
+    ports:
+      - "3001:3000"
 
 volumes:
   pgdata:

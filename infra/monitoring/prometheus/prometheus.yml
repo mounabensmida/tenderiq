@@ -1,0 +1,9 @@
+global:
+  scrape_interval: 15s                 # toutes les 15 secondes, Prometheus lit /metrics
+scrape_configs:
+  - job_name: tenderiq-api
+    static_configs:
+      # Deux adresses possibles pour l'API ; une seule est "UP" à la fois, c'est normal :
+      #  - api:8000                  -> l'API tourne dans Docker (docker compose up api)
+      #  - host.docker.internal:8000 -> l'API tourne sur Windows (uvicorn --reload)
+      - targets: ["api:8000", "host.docker.internal:8000"]
