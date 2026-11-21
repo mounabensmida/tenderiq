@@ -1,6 +1,7 @@
 """Question en français -> SQL vérifié -> résultat -> phrase de réponse."""
 import json
 import re
+from decimal import Decimal
 
 from sqlalchemy import text
 
@@ -61,11 +62,25 @@ def run_sql(question: str) -> dict:
     return {"sql": sql, "rows": rows}
 
 
+def readable(value):
+    """Decimal('772392.1568627…') -> 772392.16 : un nombre lisible pour le LLM comme pour l'humain."""
+    if isinstance(value, (Decimal, float)):
+        return round(float(value), 2)
+    return value
+
+
 def answer_with_sql(question: str) -> dict:
     result = run_sql(question)
-    summary_prompt = (f"Question : {question}\nRésultat de la base (JSON) : "
-                    f"{json.dumps(result['rows'][:20], default=str, ensure_ascii=False)}\n"
-                    "Réponds à la question en une ou deux phrases, dans la langue de la question, "
-                    "en t'appuyant uniquement sur ce résultat.")
+    rows = [{k: readable(v) for k, v in row.items()} for row in result["rows"][:20]]
+    # Un petit LLM se trompe facilement quand il additionne ou compare des nombres.
+    # On lui interdit donc tout calcul : il ne fait que citer. Les lignes exactes sont aussi
+    # renvoyées à l'interface, qui les affiche dans un tableau (la vérité reste visible).
+    summary_prompt = (f"Question : {question}\n"
+                      f"Résultat EXACT de la base (JSON, {len(result['rows'])} ligne(s)) : "
+                      f"{json.dumps(rows, default=str, ensure_ascii=False)}\n"
+                      "Réponds en une ou deux phrases, dans la langue de la question.\n"
+                      "Règles : cite les valeurs telles qu'elles apparaissent dans le résultat ; "
+                      "ne fais AUCUN calcul (pas de total, pas de moyenne) ; ne renomme pas les catégories.")
     result["answer"] = get_llm().invoke(summary_prompt).content.strip()
+    result["rows"] = json.loads(json.dumps(rows, default=str))   # dates, Decimal… -> types JSON simples
     return result

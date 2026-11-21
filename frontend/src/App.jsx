@@ -1,174 +1,99 @@
-// App.jsx — toute l'interface de TenderIQ en un seul fichier (3 composants + l'App)
-import { useEffect, useState } from "react";
+// App.jsx — assemble les écrans : connexion, puis tableau de bord (indicateurs + opportunités + assistant).
+import { useCallback, useEffect, useState } from "react";
 import "./App.css";
+import { api, decodeToken } from "./api";
+import Chat from "./components/Chat";
+import Icon from "./components/Icon";
+import Login from "./components/Login";
+import { KpiRow, SectorBreakdown } from "./components/Stats";
+import TenderTable from "./components/TenderTable";
 
-const API = "http://localhost:8000";
-
-// Petite fonction utilitaire : appelle l'API avec le token et renvoie le JSON (ou lève une erreur).
-async function api(path, token, options = {}) {
-  const res = await fetch(`${API}${path}`, {
-    ...options,
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) throw new Error(`${res.status} : ${await res.text()}`);
-  return res.json();
-}
-
-// ---------- Composant 1 : la connexion ----------
-function Login({ onLogin }) {
-  const [username, setUsername] = useState("analyste");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-
-  async function submit(event) {
-    event.preventDefault();                          // empêche le rechargement de la page
-    // OAuth2 attend un formulaire classique (pas du JSON) : URLSearchParams s'en charge.
-    const res = await fetch(`${API}/auth/token`, { method: "POST", body: new URLSearchParams({ username, password }) });
-    if (!res.ok) return setError("Identifiants incorrects");
-    const data = await res.json();
-    onLogin(data.access_token);                      // on remonte le token au composant parent
-  }
-
-  return (
-    <form className="card login" onSubmit={submit}>
-      <h2>Connexion à TenderIQ</h2>
-      <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Utilisateur" />
-      <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mot de passe" />
-      <button>Se connecter</button>
-      {error && <p className="error">{error}</p>}
-    </form>
-  );
-}
-
-// ---------- Composant 2 : le tableau des opportunités ----------
-function Tenders({ token }) {
+function Dashboard({ token, onLogout }) {
+  const user = decodeToken(token);
+  const [stats, setStats] = useState(null);
   const [tenders, setTenders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [sector, setSector] = useState("");
 
-  // useEffect : "fais ceci quand le composant apparaît" (et à chaque changement de token).
+  // useEffect : "fais ceci quand le composant apparaît". Les 2 appels partent en parallèle.
   useEffect(() => {
-    api("/tenders?limit=15", token).then(setTenders).catch(console.error);
-  }, [token]);
+    Promise.all([api("/stats", token), api("/tenders?limit=100", token)])
+      .then(([s, t]) => { setStats(s); setTenders(t); })
+      .catch((err) => {
+        if (err.message.includes("Token")) onLogout();   // token expiré : retour à la connexion
+        else setError(err.message);
+      })
+      .finally(() => setLoading(false));
+  }, [token, onLogout]);
 
   return (
-    <section className="card">
-      <h2>Meilleures opportunités</h2>
-      <table>
-        <thead>
-          <tr><th>Référence</th><th>Objet</th><th>Secteur</th><th>Score</th><th>Pourquoi ?</th></tr>
-        </thead>
-        <tbody>
-          {tenders.map((t) => (
-            <tr key={t.reference}>
-              <td>{t.reference}</td>
-              <td>{t.title}</td>
-              <td>{t.sector}</td>
-              <td className="score">{t.score != null ? `${Math.round(t.score * 100)} %` : "—"}</td>
-              <td>{t.justification || (t.score_reasons || []).map((r) => `${r.label} (${r.direction})`).join(" · ")}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </section>
-  );
-}
-
-// ---------- Composant 3 : le chat avec l'agent ----------
-function Chat({ token, role }) {
-  const [question, setQuestion] = useState("");
-  const [messages, setMessages] = useState([]);
-  const [pending, setPending] = useState(null);      // brouillon d'e-mail en attente de validation
-  const [loading, setLoading] = useState(false);
-
-  const add = (msg) => setMessages((old) => [...old, msg]);   // ajoute un message à la liste
-
-  async function ask(event) {
-    event.preventDefault();
-    if (!question.trim()) return;
-    add({ who: "moi", text: question });
-    setLoading(true);
-    try {
-      const r = await api("/ask", token, { method: "POST", body: JSON.stringify({ question }) });
-      if (r.status === "pending_approval") {
-        setPending(r);
-        add({ who: "agent", text: "J'ai préparé un e-mail. Il faut une validation avant l'envoi." });
-      } else {
-        add({ who: "agent", text: r.answer, route: r.route, sources: r.sources, sql: r.sql });
-      }
-    } catch (err) {
-      add({ who: "agent", text: `Erreur ${err.message}` });
-    }
-    setQuestion("");
-    setLoading(false);
-  }
-
-  async function decide(decision) {
-    try {
-      const r = await api("/approve", token, { method: "POST", body: JSON.stringify({ thread_id: pending.thread_id, decision }) });
-      add({ who: "agent", text: r.answer });
-    } catch (err) {
-      add({ who: "agent", text: `Erreur ${err.message}` });
-    }
-    setPending(null);
-  }
-
-  return (
-    <section className="card">
-      <h2>Poser une question</h2>
-      <div className="messages">
-        {messages.map((m, i) => (
-          <div key={i} className={`msg ${m.who}`}>
-            {m.route && <span className="badge">{m.route}</span>}
-            <p>{m.text}</p>
-            {m.sources?.length > 0 && (
-              <small>Sources : {m.sources.map((s) => `[${s.n}] ${s.reference} p.${s.page}`).join(" · ")}</small>
-            )}
-            {m.sql && <pre>{m.sql}</pre>}
-          </div>
-        ))}
-        {loading && <p className="msg agent">L'agent réfléchit…</p>}
-      </div>
-
-      {pending && (
-        <div className="approval">
-          <b>À : {pending.draft.to}</b> — {pending.draft.subject}
-          <pre>{pending.draft.body}</pre>
-          {role === "admin" ? (
-            <>
-              <button onClick={() => decide("approve")}>Valider et envoyer</button>
-              <button className="secondary" onClick={() => decide("reject")}>Refuser</button>
-            </>
-          ) : (
-            <p className="error">Seul un administrateur peut valider cet envoi.</p>
-          )}
+    <div className="app">
+      <header className="topbar">
+        <div className="brand">
+          <span className="brand-mark"><Icon name="logo" size={20} /></span>
+          <span>TenderIQ</span>
+          <span className="brand-tag">Veille & analyse d'appels d'offres</span>
         </div>
-      )}
+        <div className="topbar-right">
+          <span className={`status ${error ? "status-down" : "status-up"}`}>
+            <i /> {error ? "API indisponible" : "Connecté"}
+          </span>
+          <div className="user-chip">
+            <span className="avatar">{user.sub[0].toUpperCase()}</span>
+            <div>
+              <b>{user.sub}</b>
+              <small>{user.role === "admin" ? "Administrateur" : "Analyste"}</small>
+            </div>
+          </div>
+          <button className="btn btn-ghost btn-sm" onClick={onLogout} title="Se déconnecter">
+            <Icon name="logout" size={16} /> Déconnexion
+          </button>
+        </div>
+      </header>
 
-      <form onSubmit={ask} className="ask">
-        <input value={question} onChange={(e) => setQuestion(e.target.value)}
-               placeholder="Ex. : Quelle caution pour AO-2026-0002 ?  /  Combien d'offres en BTP ?" />
-        <button disabled={loading}>Envoyer</button>
-      </form>
-    </section>
+      <main className="content">
+        <div className="page-title">
+          <h1>Tableau de bord</h1>
+          <p className="muted">Les appels d'offres publics notés par le modèle, et un assistant pour les interroger.</p>
+        </div>
+
+        {error && <p className="alert alert-error">Impossible de charger les données : {error}</p>}
+
+        <KpiRow stats={stats} />
+
+        <div className="grid">
+          <div className="col-main">
+            <SectorBreakdown stats={stats} active={sector} onSelect={setSector} />
+            <TenderTable tenders={tenders} loading={loading} sector={sector} onSectorChange={setSector} />
+          </div>
+          <aside className="col-side">
+            <Chat token={token} role={user.role} />
+          </aside>
+        </div>
+      </main>
+    </div>
   );
 }
 
-// ---------- L'application ----------
 export default function App() {
-  const [token, setToken] = useState(null);
-  if (!token) return <Login onLogin={setToken} />;
+  // Le token est gardé dans sessionStorage : un rechargement de page ne déconnecte pas,
+  // mais fermer l'onglet, si. (try/catch : le stockage peut être bloqué par le navigateur.)
+  const [token, setToken] = useState(() => {
+    try { return sessionStorage.getItem("tenderiq_token"); } catch { return null; }
+  });
 
-  // Le milieu du JWT contient le rôle (encodé en base64url, pas chiffré : il ne faut rien y mettre de secret).
-  const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+  // useCallback garde LA MÊME fonction d'un affichage à l'autre. Sans lui, le useEffect du Dashboard
+  // (qui dépend de onLogout) verrait une "nouvelle" fonction à chaque fois et rechargerait en boucle.
+  const save = useCallback((t) => {
+    try {
+      if (t) sessionStorage.setItem("tenderiq_token", t);
+      else sessionStorage.removeItem("tenderiq_token");
+    } catch { /* stockage bloqué : on reste connecté pour cette page seulement */ }
+    setToken(t);
+  }, []);
+  const logout = useCallback(() => save(null), [save]);
 
-  return (
-    <main>
-      <header>
-        <h1>TenderIQ</h1>
-        <span>{payload.sub} ({payload.role})</span>
-        <button className="secondary" onClick={() => setToken(null)}>Déconnexion</button>
-      </header>
-      <Tenders token={token} />
-      <Chat token={token} role={payload.role} />
-    </main>
-  );
+  if (!token) return <Login onLogin={save} />;
+  return <Dashboard token={token} onLogout={logout} />;
 }

@@ -19,6 +19,7 @@ class AgentState(TypedDict, total=False):
     answer: str
     sources: list
     sql: str
+    rows: list
     email_draft: dict
     approved: bool
 
@@ -55,7 +56,7 @@ def rag_node(state: AgentState) -> dict:
 def sql_node(state: AgentState) -> dict:
     try:
         result = answer_with_sql(state["question"])
-        return {"answer": result["answer"], "sql": result["sql"]}
+        return {"answer": result["answer"], "sql": result["sql"], "rows": result["rows"]}
     except UnsafeSQLError as error:
         return {"answer": f"Requête refusée par le garde-fou : {error}"}
     except Exception as error:                               # SQL invalide généré par le LLM, etc.

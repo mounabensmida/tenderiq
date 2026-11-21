@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: tenderiq
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: postgres }
+  template:
+    metadata:
+      labels: { app: postgres }      # l'étiquette qui relie le pod au Service
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16
+          env:
+            - { name: POSTGRES_DB, value: tenderiq }
+            - { name: POSTGRES_USER, value: tenderiq }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: tenderiq-secrets, key: POSTGRES_PASSWORD } }
+          ports: [{ containerPort: 5432 }]
+          volumeMounts:
+            - { name: init, mountPath: /docker-entrypoint-initdb.d }
+      volumes:
+        - name: init
+          configMap: { name: db-init }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: tenderiq
+spec:
+  selector: { app: postgres }
+  ports: [{ port: 5432 }]

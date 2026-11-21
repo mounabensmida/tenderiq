@@ -56,6 +56,26 @@ def list_tenders(min_score: float = 0.0, limit: int = Query(20, ge=1, le=100),
     return [dict(r) for r in rows]
 
 
+@router.get("/stats")
+def stats(user: dict = Depends(get_current_user)):
+    """Les chiffres clés du tableau de bord, calculés sur TOUTE la base (pas seulement la page affichée)."""
+    with readonly_engine.connect() as conn:
+        totals = conn.execute(text("""
+            SELECT COUNT(*)                                            AS total,
+                   COUNT(f.score)                                      AS scored,
+                   AVG(f.score)                                        AS avg_score,
+                   COUNT(*) FILTER (WHERE f.score >= 0.7)              AS hot,
+                   COALESCE(SUM(f.budget_tnd) FILTER (WHERE f.score >= 0.7), 0) AS hot_budget,
+                   COUNT(*) FILTER (WHERE d.full_date >= CURRENT_DATE) AS open
+            FROM fact_tender f
+            LEFT JOIN dim_date d ON d.date_id = f.deadline_date_id""")).mappings().one()
+        sectors = conn.execute(text("""
+            SELECT s.name AS sector, COUNT(*) AS count, AVG(f.score) AS avg_score
+            FROM fact_tender f JOIN dim_sector s USING (sector_id)
+            GROUP BY s.name ORDER BY count DESC""")).mappings().all()
+    return {**dict(totals), "sectors": [dict(s) for s in sectors]}
+
+
 @router.post("/ask")
 def ask(req: AskRequest, user: dict = Depends(get_current_user)):
     thread_id = str(uuid.uuid4())
@@ -67,7 +87,7 @@ def ask(req: AskRequest, user: dict = Depends(get_current_user)):
         return {"status": "pending_approval", "thread_id": thread_id, "route": "email",
                 "draft": result["__interrupt__"][0].value["draft"]}
     return {"status": "done", "route": result.get("route"), "answer": result.get("answer"),
-            "sources": result.get("sources", []), "sql": result.get("sql")}
+            "sources": result.get("sources", []), "sql": result.get("sql"), "rows": result.get("rows", [])}
 
 
 @router.post("/approve")

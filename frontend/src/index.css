@@ -1,0 +1,60 @@
+/* index.css — les "jetons" de design (couleurs, rayons, ombres) + une remise à zéro des styles.
+   Toutes les couleurs passent par des variables : le mode sombre n'a qu'à les redéfinir. */
+
+:root {
+  --bg: #f4f6fb;
+  --surface: #ffffff;
+  --surface-2: #f8fafc;
+  --border: #e3e8f0;
+  --text: #0f172a;
+  --muted: #64748b;
+
+  --primary: #2b59e8;
+  --primary-hover: #1f47c7;
+  --primary-soft: #e8eefd;
+  --brand-dark: #0b1736;
+
+  --high: #12965a;   --high-soft: #e3f6ec;
+  --mid: #c27803;    --mid-soft: #fdf3dc;
+  --low: #94a3b8;    --low-soft: #eef2f6;
+  --danger: #d92d20; --danger-soft: #fdecea;
+
+  --radius: 14px;
+  --radius-sm: 9px;
+  --shadow: 0 1px 2px rgb(15 23 42 / 0.04), 0 4px 16px rgb(15 23 42 / 0.05);
+
+  font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Mode sombre automatique si le système de l'utilisateur est en sombre. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b1020;
+    --surface: #121a2e;
+    --surface-2: #172138;
+    --border: #243049;
+    --text: #e6ebf5;
+    --muted: #93a1bb;
+    --primary: #5b82ff;
+    --primary-hover: #7695ff;
+    --primary-soft: #1b2950;
+    --high-soft: #0f2e22;
+    --mid-soft: #33270b;
+    --low-soft: #1c2538;
+    --danger-soft: #3a1513;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 16px rgb(0 0 0 / 0.25);
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); min-height: 100vh; }
+h1, h2, h3, h4, p { margin: 0; }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: 0.55; }
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
